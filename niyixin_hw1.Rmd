@@ -1,0 +1,144 @@
+---
+title: "hw"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### (a)
+
+From the numerical and graphical summaries of the Weekly data, we can get some conclusion.
+
+(1) The min and max value among Lag1, Lag2, Lag3, Lag4 and Lag5, Today are same, as trend charts follow the same pattern.
+
+(2) The Volume showed an increasing trend year by year from 1990 to 2011, and it started to decline in recent years.
+
+(3) Direction has an effect on Today. The value of Today is relatively high when it is up.
+```{r,1}
+library(ISLR)
+data = Weekly
+summary(data)
+par(mfrow = c(2,2))
+datats = ts(data$Lag1, frequency=48, start=c(1990,1)) 
+ts.plot(datats,ylab = 'Lag1')
+datats1 = ts(data$Lag2, frequency=48, start=c(1990,1)) 
+ts.plot(datats1,ylab = 'Lag2')
+datats2 = ts(data$Lag3, frequency=48, start=c(1990,1)) 
+ts.plot(datats2,ylab = 'Lag3')
+datats3 = ts(data$Lag4, frequency=48, start=c(1990,1)) 
+ts.plot(datats3,ylab = 'Lag4')
+datats4 = ts(data$Lag5, frequency=48, start=c(1990,1)) 
+ts.plot(datats4,ylab = 'Lag5')
+datats5 = ts(data$Volume, frequency=48, start=c(1990,1)) 
+ts.plot(datats5,ylab = 'Volume')
+datats6 = ts(data$Today, frequency=48, start=c(1990,1)) 
+ts.plot(datats6,ylab = 'Today')
+boxplot(data$Today~data$Direction,data, col=c(6,5))
+```
+
+
+
+
+###(b)
+
+From the summay imformation which presented below, Lag2 appear to be statistical significant with 99%.
+
+```{r,2}
+model1 = glm(data$Direction~data$Lag1+data$Lag2+data$Lag3++data$Lag4+data$Lag5+data$Volume,data,family = "binomial" )
+summary(model1)
+```
+
+###(c)
+
+Confusion matrix is shown below
+
+Overall fraction of correct predictions is 53.44%
+
+In the confusion matrix, these numbers that are not on the diagonal denote the number of samples for the predicted error category. such as we predict 42 samples as Down which true labels are Up.
+
+In a similar way, these numbers that are on the diagonal as model get them true labels.  
+```{r,3}
+prep = predict(model1,data)
+prep1 = ifelse(prep>0.5,'Down','Up')
+t = table(prep1,data$Direction)
+print(t)
+acc = (t[1]+t[4])/length(rownames(data))
+acc
+```
+
+###(d)
+
+Confusion matrix is shown below.
+
+Overall fraction of correct predictions is 55.76%.
+
+
+```{r,4}
+train = data[which(data$Year>=1990 & data$Year<=2008),]
+test = data[which(data$Year>2008),]
+model2 = glm(Direction~Lag2,train,family = "binomial")
+prep2 = predict(model2,test)
+prep22 = ifelse(prep2>0.5,'Down','Up')
+t = table(prep22,test$Direction)
+print(t)
+acc = (t[1]+t[4])/length(rownames(test))
+acc
+```
+
+###(e)
+
+Confusion matrix is shown below.
+
+Overall fraction of correct predictions is 62.5%.
+
+```{r,5}
+library(MASS)
+model3 = lda(Direction~Lag2,train,family = "binomial")
+prep3 = predict(model3,test)
+prep33 = prep3$class
+t = table(prep33,test$Direction)
+print(t)
+acc = (t[1]+t[4])/length(rownames(test))
+acc
+```
+
+###(f)
+
+From the figure, when k=4 or 9 that minimizes the test misclassification error rate.
+
+```{r,6}
+library(class)
+misl = c()
+prepl = c()
+for (k in 1:10){
+  prep4<-knn(train=train[,2:8],test=test[,2:8],cl=train$Direction,k=k)
+  prepl = append(prepl,prep4)
+  t = table(prep4,test$Direction)
+  mis = (t[2]+t[3])/length(rownames(test))
+  misl = append(misl,mis)
+}
+plot(misl,type = 'l',col = 'red',ylab = 'misclassification error rate',xlab = 'K value')
+```
+
+###(g)
+
+From the results in (d) to (f), KNN with k=4 appears to provide the best results on this data, because it has the smallest misclassification error rate. 
+
+###(h)
+
+It can be seen from the ROC image that the ROC curve area of LDA and GLM models is small, while the ROC curve area of the overall KNN model is relatively large. When the value of k is 4 and 9, the ROC curve and the X-axis enclosed area is the largest, which means that the model has the best classification effect.
+```{r,64}
+library(ROCit)
+a2 = rocit(score=prep2,class=test$Direction)
+plot(a2)
+a3 = rocit(score=as.vector(prep3$x),class=test$Direction)
+plot(a3)
+for(k in 1:10){
+  a4 = rocit(score=prepl[(1+104*(k-1)):(104*k)],class=test$Direction)
+  plot(a4)
+}
+
+```
+
